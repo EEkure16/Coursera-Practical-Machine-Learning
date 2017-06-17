@@ -1,0 +1,243 @@
+---
+title: "Coursera practical machine learning project"
+author: "Edgar Ekure"
+date: "June 16, 2017"
+output: html_document
+---
+
+
+
+# BACKGROUND
+
+
+In this age of big data, collecting large amounts of data relating to how people engage in exercises has become easy and convenient. Devices such as Jawbone Up, Nike FuelBand, and Fitbit have been used to collect a large amount of data about personal activities. Generally, most people are more interested in the quantification of a particular activity than how well they perform such activities.
+
+
+
+
+## GOAL OF STUDY
+
+
+The goal of this study was to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants, and predict how the activities were performed, using any of the predictor variables to predict the outcome measure "classe". 
+
+
+
+
+## DATA
+
+
+
+The data used were sourced from the website http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+The training dataset can be seen here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The testing dataset can be seen here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+
+
+
+
+The libraries below are needed to excutive the analyses of this study.
+
+
+```{r}
+library(caret)
+library(ggthemes)
+library(gridExtra)
+library(ggplot2)
+library(randomForest)
+library(grid)
+library(rpart)
+library(rattle)
+library(rpart.plot)
+library(RColorBrewer)
+```
+
+
+
+
+
+
+
+
+
+
+The two next chunks of codes downloads the data, reads the CSV files, and removes missing values (NA)
+
+
+```{r}
+set.seed(46)
+
+url_train <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+url_test <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+training <- read.csv(url(url_train), na.strings=c("NA","#DIV/0!",""))
+testing <- read.csv(url(url_test), na.strings=c("NA","#DIV/0!",""))
+```
+
+
+```{r}
+training <- training[, colSums(is.na(training)) == 0]
+testing <- testing[, colSums(is.na(testing)) == 0]
+```
+
+
+
+
+
+
+
+
+
+
+Columns 1 through 7 were removed in the code below because they were variables not important to the prediction.
+
+
+```{r}
+train_sel <- training[, -c(1:7)]
+test_sel <- testing[, -c(1:7)]
+```
+
+
+
+
+
+
+
+
+
+Partitioning the data into 60% training and 40% testing datasets
+
+
+```{r}
+train1 <- createDataPartition(train_sel$classe, p = 0.6, list = FALSE)
+train2 <- train_sel[train1, ]
+test2 <- train_sel[-train1, ]
+```
+
+
+
+
+
+
+
+
+
+
+
+
+Random Forest was used to model the data
+
+```{r}
+set.seed(48)
+model1 <- randomForest(classe ~ ., data = train2, ntrees = 500, Importance = TRUE)
+print(model1)
+```
+
+The out of bag error was very small, the confusion matrix showed good predictions with minimal misclassifications.
+
+
+
+
+
+
+
+
+
+
+
+
+Next error rate was modeled as a function of the number of trees
+
+```{r}
+plot(model1, main = "Random Froest: Error rate as a function of the number of trees")
+```
+
+The error rate from the above plot asymptotes to the lowest error rate at about 100 trees.
+
+
+
+
+
+
+
+
+
+
+
+Predicting test dataset
+
+
+```{r}
+prediction1 <- predict(model1, newdata = test2)
+confusionMatrix(prediction1, test2$classe)
+
+```
+
+The accuracy of the prediction was high, 99.48%. Sensitivity and specificity were also very in the high ninety percents.
+
+
+
+
+
+
+
+
+
+
+
+The second model was performed using rpart
+
+```{r}
+set.seed(48)
+model2 <- rpart(classe ~ ., data = train2, method = "class")
+printcp(model2)
+```
+
+The accuracy, sensitivity, and specificity of model 2, although high, was lower than those of random forest. Therefore random forest was chosen as the model to use in the prediction of the test dataset.
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+fancyRpartPlot(model2)
+```
+
+Fancy plot of the decision tree generated using rpart, rpart.plot, and rattle libraries
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Below is the prediction based on the second model
+
+```{r}
+prediction2 <- predict(model2, test2, type = "class")
+confusionMatrix(prediction2, test2$classe)
+
+```
+
+
+
+
+
